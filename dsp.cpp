@@ -68,9 +68,6 @@ static int se;
 /** fastq mode dispatch. */
 static int fq;
 
-/** Source Directory*/
-static std::string src;
-
 /** Source Genome Directory*/
 static std::string src_gen;
 
@@ -78,7 +75,7 @@ static std::string src_gen;
 static std::string dst;
 }
 
-static const char shortopts[] = "s:l:b:p:j:d:h:i:r:d:g";
+static const char shortopts[] = "s:l:b:p:j:d:h:i:d:g:";
 
 enum { OPT_HELP = 1, OPT_VERSION };
 
@@ -443,9 +440,6 @@ int main(int argc, char** argv) {
         case 'i':
             arg >> opt::ibits;
             break;
-        case 'r':
-            arg >> opt::src;
-            break;
         case 'd':
             arg >> opt::dst;
             break;
@@ -492,7 +486,6 @@ int main(int argc, char** argv) {
     std::cerr<<"bmer-step="<<opt::bmer_step<<"\n";
     std::cerr<<"bmer="<<opt::bmer<<"\n";
     std::cerr<<"alen="<<opt::alen<<"\n";
-    std::cerr<<"src="<<opt::src<<"\n";
     std::cerr<<"dst="<<opt::dst<<"\n";
     std::cerr<<"src_gen="<<opt::src_gen<<"\n";
 
