@@ -147,7 +147,7 @@ size_t getInfo(const char *aName, unsigned k) {
 
     getline(faFile, line);
     if (line[0]!='>') {
-        std::cerr << "Target file is not in correct format!\n";
+        std::cerr << "Target file "<< aName <<" is not in correct format!\n";
         exit(EXIT_FAILURE);
     }
     size_t totItm=0, uLen=0;
