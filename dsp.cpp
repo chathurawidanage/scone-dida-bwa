@@ -73,6 +73,9 @@ static std::string src_gen;
 
 /** Destination Directory*/
 static std::string dst;
+
+/** Destination Directory For Unprotected Files*/
+static std::string dst_up;
 }
 
 static const char shortopts[] = "s:l:b:p:j:d:h:i:d:g:";
@@ -89,6 +92,7 @@ static const struct option longopts[] = {
     { "bit",	required_argument, NULL, 'i' },
     { "src",	required_argument, NULL, 'r' },
     { "dst",	required_argument, NULL, 'd' },
+    { "dst_unprotected",	required_argument, NULL, 'u' },
     { "src_gen",	required_argument, NULL, 'g' },
     { "se",	no_argument, &opt::se, 1 },
     { "fq",	no_argument, &opt::fq, 1 },
@@ -396,7 +400,7 @@ void dispatchRead(const char *libName, const std::vector< std::vector<bool> > &m
         rdFiles[pIndex].close();
 
     std::stringstream maxInfPath;
-    maxInfPath << opt::dst << "/maxinf";    
+    maxInfPath << opt::dst_up << "/maxinf";    
     std::ofstream imdFile(maxInfPath.str(), std::ios_base::app);
     imdFile<<readId<<"\n";
     imdFile.close();
@@ -442,6 +446,9 @@ int main(int argc, char** argv) {
             break;
         case 'd':
             arg >> opt::dst;
+            break;
+        case 'u':
+            arg >> opt::dst_up;
             break;
         case 'g':
             arg >> opt::src_gen;
