@@ -78,7 +78,7 @@ static std::string dst;
 static std::string dst_up;
 }
 
-static const char shortopts[] = "s:l:b:p:j:d:h:i:d:g:";
+static const char shortopts[] = "s:l:b:p:j:d:h:i:d:g:u:";
 
 enum { OPT_HELP = 1, OPT_VERSION };
 
