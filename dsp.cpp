@@ -413,6 +413,7 @@ void dispatchRead(const char *libName, const std::vector<std::vector<bool> > &my
 void writeBf(const std::vector<std::vector<bool> > &bf, std::string file_name) {
   std::ofstream fout(file_name, std::ios::out | std::ios::binary);
   int no_of_vectors = bf.size();
+  std::cerr << "Writing bf of size " << no_of_vectors << std::endl;
   fout.write(reinterpret_cast<char *>(&no_of_vectors), sizeof(no_of_vectors));
   for (int i = 0; i < no_of_vectors; i++) {
     int vec_size = bf.at(i).size();
@@ -421,6 +422,7 @@ void writeBf(const std::vector<std::vector<bool> > &bf, std::string file_name) {
     fout.write(reinterpret_cast<const char *>(&first_val), vec_size * sizeof(bool));
   }
   fout.close();
+  std::cerr << "Wrote bf" << std::endl;
 }
 
 std::vector<std::vector<bool> > readBF(std::string file_name) {
@@ -441,6 +443,21 @@ std::vector<std::vector<bool> > readBF(std::string file_name) {
 
   // todo avoid copy
   return bf;
+}
+
+std::string getFileName(const std::string &s) {
+  char sep = '/';
+
+#ifdef _WIN32
+  sep = '\\';
+#endif
+
+  size_t i = s.rfind(sep, s.length());
+  if (i != std::string::npos) {
+    return (s.substr(i + 1, s.length() - i));
+  }
+
+  return ("");
 }
 
 int main(int argc, char **argv) {
@@ -532,8 +549,8 @@ int main(int argc, char **argv) {
 
   const char *libName(argv[argc - 1]);
 
-  std::string bf_location = opt::dst_up + "/" + libName + "_" + std::to_string(opt::pnum) + "_" +
-                            std::to_string(opt::bmer);
+  std::string bf_location = opt::dst_up + "/" + getFileName(libName) + "_" +
+                            std::to_string(opt::pnum) + "_" + std::to_string(opt::bmer);
 
   std::cerr << "BF File : " << bf_location << std::endl;
 
