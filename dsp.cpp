@@ -416,11 +416,11 @@ void writeBf(const std::vector<std::vector<bool> > &bf, std::string file_name) {
   std::cerr << "Writing bf of size " << no_of_vectors << std::endl;
   fout.write(reinterpret_cast<char *>(&no_of_vectors), sizeof(no_of_vectors));
   for (int i = 0; i < no_of_vectors; i++) {
-    int vec_size = bf.at(i).size();
+    std::vector<bool> vec = bf.at(i);
+    int vec_size = vec.size();
     std::cerr << "Writing bf partition of size " << vec_size << std::endl;
     fout.write(reinterpret_cast<char *>(&vec_size), sizeof(vec_size));
-    bool first_val = bf.at(i)[0];
-    fout.write(reinterpret_cast<const char *>(&first_val), vec_size * sizeof(bool));
+    fout.write(reinterpret_cast<const char *>(&vec[0]), vec_size * sizeof(bool));
   }
   fout.close();
   std::cerr << "Wrote bf" << std::endl;
