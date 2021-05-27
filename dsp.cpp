@@ -417,6 +417,7 @@ void writeBf(const std::vector<std::vector<bool> > &bf, std::string file_name) {
   fout.write(reinterpret_cast<char *>(&no_of_vectors), sizeof(no_of_vectors));
   for (int i = 0; i < no_of_vectors; i++) {
     int vec_size = bf.at(i).size();
+    std::cerr << "Writing bf partition of size " << vec_size << std::endl;
     fout.write(reinterpret_cast<char *>(&vec_size), sizeof(vec_size));
     bool first_val = bf.at(i)[0];
     fout.write(reinterpret_cast<const char *>(&first_val), vec_size * sizeof(bool));
@@ -430,10 +431,11 @@ std::vector<std::vector<bool> > readBF(std::string file_name) {
   int no_of_vectors = 0;
   fin.read(reinterpret_cast<char *>(&no_of_vectors), sizeof(no_of_vectors));
   std::vector<std::vector<bool> > bf(no_of_vectors);
-
+  std::cerr << "Reading bf of size " << no_of_vectors << std::endl;
   for (int i = 0; i < no_of_vectors; i++) {
     int vec_size = 0;
     fin.read(reinterpret_cast<char *>(&vec_size), sizeof(vec_size));
+    std::cerr << "Reading bf partition of size " << vec_size << std::endl;
     std::vector<bool> fil(vec_size);
     bf.push_back(fil);
     bool first = fil[0];
