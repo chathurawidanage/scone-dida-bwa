@@ -35,9 +35,15 @@ mem: coupled with -r to report up to N sam records for each read, best: best qua
 namespace opt {
 /** Maximum number of sam record per query. */
 unsigned nsam = 5;
+
+/** Source sam files*/
+static std::string src;
+
+/** Source unprotected files*/
+static std::string src_up;
 }
 
-static const char shortopts[] = "p:a:m:r:";
+static const char shortopts[] = "p:a:m:r:s:u:";
 
 enum { OPT_HELP = 1, OPT_VERSION };
 
@@ -46,6 +52,8 @@ static const struct option longopts[] = {
     { "aligner",	required_argument, NULL, 'a' },
     { "mode",	required_argument, NULL, 'm' },
     { "rec",	required_argument, NULL, 'r' },
+    { "src",	required_argument, NULL, 's' },
+    { "src_up",	required_argument, NULL, 'u' },
     { "help",	no_argument, NULL, OPT_HELP },
     { "version",	no_argument, NULL, OPT_VERSION },
     { NULL, 0, NULL, 0 }
@@ -243,7 +251,7 @@ void fordMer(const int pNum, const std::string &alignerName) {
 
     for (int i = 0; i < pNum; ++i) {
         std::stringstream sstm;
-        sstm << "aln-" << i+1 << ".sam";
+        sstm << opt::src <<"/aln-" << i+1 << ".sam";
         samFiles[i].open(sstm.str().c_str());
     }
     samFiles[pNum].open("lreads.sam");
@@ -479,6 +487,12 @@ int main(int argc, char** argv) {
             break;
         case 'm':
             arg >> runMode;
+            break;
+        case 's':
+            arg >> opt::src;
+            break;
+        case 'u':
+            arg >> opt::src_up;
             break;
         case 'r':
             arg >> opt::nsam;
