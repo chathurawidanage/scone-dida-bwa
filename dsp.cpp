@@ -410,21 +410,34 @@ void dispatchRead(const char *libName, const std::vector<std::vector<bool> > &my
   imdFile.close();
 }
 
-void writeBf(const std::vector<std::vector<bool> > &bf, std::string file_name) {
+void binary_write(const std::vector<bool> *x, std::string file_name) {
   std::ofstream fout(file_name, std::ios::out | std::ios::binary);
-  int no_of_vectors = bf.size();
-  std::cerr << "Writing bf of size " << no_of_vectors << std::endl;
-  fout.write(reinterpret_cast<char *>(&no_of_vectors), sizeof(no_of_vectors));
-  for (int i = 0; i < no_of_vectors; i++) {
-    std::vector<bool> vec = bf.at(i);
-    int vec_size = vec.size();
-    std::cerr << "Writing bf partition of size " << vec_size << std::endl;
-    fout.write(reinterpret_cast<char *>(&vec_size), sizeof(vec_size));
-    fout.write(reinterpret_cast<const char *>(&vec[0]), vec_size * sizeof(bool));
+  std::vector<bool>::size_type n = x->size();
+  fout.write((const char *)&n, sizeof(std::vector<bool>::size_type));
+  for (std::vector<bool>::size_type i = 0; i < n;) {
+    unsigned char aggr = 0;
+    for (unsigned char mask = 1; mask > 0 && i < n; ++i, mask <<= 1)
+      if (x->at(i)) aggr |= mask;
+    fout.write((const char *)&aggr, sizeof(unsigned char));
   }
-  fout.close();
-  std::cerr << "Wrote bf" << std::endl;
 }
+
+// void writeBf(const std::vector<std::vector<bool> > *bf, std::string file_name) {
+//   std::ofstream fout(file_name, std::ios::out | std::ios::binary);
+//   int no_of_vectors = bf->size();
+//   std::cerr << "Writing bf of size " << no_of_vectors << std::endl;
+//   fout.write(reinterpret_cast<char *>(&no_of_vectors), sizeof(no_of_vectors));
+
+//   for (int i = 0; i < no_of_vectors; i++) {
+//     std::vector<bool> *vec = &(bf->at(i));
+//     int vec_size = vec.size();
+//     std::cerr << "Writing bf partition of size " << vec_size << std::endl;
+//     fout.write(reinterpret_cast<char *>(&vec_size), sizeof(vec_size));
+//     fout.write(reinterpret_cast<char *>(&vec[0]), vec_size * sizeof(bool));
+//   }
+//   fout.close();
+//   std::cerr << "Wrote bf" << std::endl;
+// }
 
 std::vector<std::vector<bool> > readBF(std::string file_name) {
   std::ifstream fin(file_name);
@@ -560,7 +573,9 @@ int main(int argc, char **argv) {
     std::cerr << "Creating only the bloom filter" << std::endl;
 
     std::vector<std::vector<bool> > myFilters = loadFilter();
-    writeBf(myFilters, bf_location);
+    for (int i = 0; i < opt::pnum; i++) {
+      binary_write(&myFilters[i], bf_location + "_" + std::to_string(i));
+    }
   } else {
     std::cerr << "Running dispatch with a precalculated bloom filter" << std::endl;
     std::vector<std::vector<bool> > myFilters = readBF(bf_location);
