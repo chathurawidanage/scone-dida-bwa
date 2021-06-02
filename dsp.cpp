@@ -367,7 +367,7 @@ void dispatchRead(const char *libName, const std::vector<std::vector<bool> > &my
       // dispatch buffer
       int pIndex;
       std::vector<bool> dspRead(buffSize, false);
-#pragma omp parallel for shared(readBuffer, rdFiles, dspRead) private(pIndex)
+      #pragma omp parallel for shared(readBuffer, rdFiles, dspRead) private(pIndex)
       for (pIndex = 0; pIndex < opt::pnum; ++pIndex) {
         for (size_t bIndex = 0; bIndex < readBuffer.size(); ++bIndex) {
           faqRec bRead = readBuffer[bIndex];
@@ -377,7 +377,7 @@ void dispatchRead(const char *libName, const std::vector<std::vector<bool> > &my
             std::string bMer = bRead.readSeq.substr(j, opt::bmer);
             getCanon(bMer);
             if (filContain(myFilters, pIndex, bMer)) {
-#pragma omp critical
+              #pragma omp critical
               dspRead[bIndex] = true;
               if (!opt::fq)
                 rdFiles[pIndex] << bRead.readHead << "\n" << bRead.readSeq << "\n";
@@ -414,6 +414,8 @@ void binary_write(const std::vector<bool> *x, std::string file_name) {
   std::ofstream fout(file_name, std::ios::out | std::ios::binary);
   std::vector<bool>::size_type n = x->size();
   fout.write((const char *)&n, sizeof(std::vector<bool>::size_type));
+
+  std::cerr << "Writing size :  "<< n  << std::endl;
   for (std::vector<bool>::size_type i = 0; i < n;) {
     unsigned char aggr = 0;
     for (unsigned char mask = 1; mask > 0 && i < n; ++i, mask <<= 1)
@@ -427,50 +429,15 @@ void binary_read(std::vector<bool> *x, std::string file_name) {
   std::vector<bool>::size_type n;
   fin.read((char *)&n, sizeof(std::vector<bool>::size_type));
   x->resize(n);
+
+  // buffer to hold all reads
+  std::cerr << "Reading size :  "<< n << std::endl;
   for (std::vector<bool>::size_type i = 0; i < n;) {
     unsigned char aggr;
     fin.read((char *)&aggr, sizeof(unsigned char));
     for (unsigned char mask = 1; mask > 0 && i < n; ++i, mask <<= 1) x->at(i) = aggr & mask;
   }
 }
-
-// void writeBf(const std::vector<std::vector<bool> > *bf, std::string file_name) {
-//   std::ofstream fout(file_name, std::ios::out | std::ios::binary);
-//   int no_of_vectors = bf->size();
-//   std::cerr << "Writing bf of size " << no_of_vectors << std::endl;
-//   fout.write(reinterpret_cast<char *>(&no_of_vectors), sizeof(no_of_vectors));
-
-//   for (int i = 0; i < no_of_vectors; i++) {
-//     std::vector<bool> *vec = &(bf->at(i));
-//     int vec_size = vec.size();
-//     std::cerr << "Writing bf partition of size " << vec_size << std::endl;
-//     fout.write(reinterpret_cast<char *>(&vec_size), sizeof(vec_size));
-//     fout.write(reinterpret_cast<char *>(&vec[0]), vec_size * sizeof(bool));
-//   }
-//   fout.close();
-//   std::cerr << "Wrote bf" << std::endl;
-// }
-
-// std::vector<std::vector<bool> > readBF(std::string file_name) {
-//   std::ifstream fin(file_name);
-//   int no_of_vectors = 0;
-//   fin.read(reinterpret_cast<char *>(&no_of_vectors), sizeof(no_of_vectors));
-//   std::vector<std::vector<bool> > bf(no_of_vectors);
-//   std::cerr << "Reading bf of size " << no_of_vectors << std::endl;
-//   for (int i = 0; i < no_of_vectors; i++) {
-//     int vec_size = 0;
-//     fin.read(reinterpret_cast<char *>(&vec_size), sizeof(vec_size));
-//     std::cerr << "Reading bf partition of size " << vec_size << std::endl;
-//     std::vector<bool> fil(vec_size);
-//     bf.push_back(fil);
-//     bool first = fil[0];
-//     fin.read(reinterpret_cast<char *>(&first), vec_size * sizeof(bool));
-//   }
-//   fin.close();
-
-//   // todo avoid copy
-//   return bf;
-// }
 
 std::string getFileName(const std::string &s) {
   char sep = '/';
@@ -585,15 +552,23 @@ int main(int argc, char **argv) {
     std::cerr << "Creating only the bloom filter" << std::endl;
 
     std::vector<std::vector<bool> > myFilters = loadFilter();
+    #pragma omp parallel for
     for (int i = 0; i < opt::pnum; i++) {
+      std::cerr << "Writing bloom filter of partition "<< i << "\n" << std::endl;
       binary_write(&myFilters[i], bf_location + "_" + std::to_string(i));
     }
+    
+    std::cerr << "Dispatching read...." << std::endl;
+    dispatchRead(libName, myFilters);
   } else {
     std::cerr << "Running dispatch with a precalculated bloom filter" << std::endl;
     std::vector<std::vector<bool> > myFilters(opt::pnum);
-    for (int i = 0; i < opt::pnum; i++) {
-      binary_read(&myFilters[i], bf_location + "_" + std::to_string(i));
+    #pragma omp parallel for
+    for (int pIndex = 0; pIndex < opt::pnum; pIndex++) {
+      std::cerr << "Loading bloomfilter for partition "<< pIndex << std::endl;
+      binary_read(&myFilters[pIndex], bf_location + "_" + std::to_string(pIndex));
     }
+    std::cerr << "Dispatching read...." << std::endl;
     dispatchRead(libName, myFilters);
   }
 #ifdef _OPENMP
