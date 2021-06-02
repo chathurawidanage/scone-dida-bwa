@@ -547,8 +547,7 @@ int main(int argc, char **argv) {
 
   const char *libName(argv[argc - 1]);
 
-  std::string bf_location = opt::dst_up + "/" + getFileName(libName) + "_" +
-                            std::to_string(opt::pnum) + "_" + std::to_string(opt::bmer);
+  std::string bf_location = opt::dst_up + "/" + std::to_string(opt::pnum) + "_" + std::to_string(opt::bmer);
 
   std::cerr << "BF File : " << bf_location << std::endl;
 
@@ -567,6 +566,8 @@ int main(int argc, char **argv) {
   } else {
     std::cerr << "Running dispatch with a precalculated bloom filter" << std::endl;
     std::vector<std::vector<bool> > myFilters(opt::pnum);
+
+    // prallel won't work in scone
     #pragma omp parallel for
     for (int pIndex = 0; pIndex < opt::pnum; pIndex++) {
       std::cerr << "Loading bloomfilter for partition "<< pIndex << std::endl;
