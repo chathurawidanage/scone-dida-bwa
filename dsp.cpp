@@ -399,44 +399,48 @@ void dispatchRead(const char *libName, const std::vector<std::vector<bool> > &my
     readFile[0].close();
     if (!opt::se) readFile[1].close();
   }
+  std::cerr << "Closing files..." << std::endl;
   libFile.close();
   msFile.close();
   for (int pIndex = 0; pIndex < opt::pnum; ++pIndex) rdFiles[pIndex].close();
 
   std::stringstream maxInfPath;
+  std::cerr << "Writing to the maxinf" << std::endl;
   maxInfPath << opt::dst_up << "/maxinf";
   std::ofstream imdFile(maxInfPath.str(), std::ios_base::app);
   imdFile << readId << "\n";
   imdFile.close();
 }
 
-void binary_write(const std::vector<bool> *x, std::string file_name) {
+void binary_write(const std::vector<bool> *x, const std::string& file_name) {
   std::ofstream fout(file_name, std::ios::out | std::ios::binary);
   std::vector<bool>::size_type n = x->size();
   fout.write((const char *)&n, sizeof(std::vector<bool>::size_type));
 
-  std::cerr << "Writing size :  "<< n  << std::endl;
+  std::cerr << "Writing size :  "<< n <<" to " << file_name.c_str() << std::endl;
   for (std::vector<bool>::size_type i = 0; i < n;) {
     unsigned char aggr = 0;
     for (unsigned char mask = 1; mask > 0 && i < n; ++i, mask <<= 1)
       if (x->at(i)) aggr |= mask;
     fout.write((const char *)&aggr, sizeof(unsigned char));
   }
+  fout.close();
 }
 
-void binary_read(std::vector<bool> *x, std::string file_name) {
+void binary_read(std::vector<bool> *x, const std::string& file_name) {
   std::ifstream fin(file_name);
   std::vector<bool>::size_type n;
   fin.read((char *)&n, sizeof(std::vector<bool>::size_type));
   x->resize(n);
 
   // buffer to hold all reads
-  std::cerr << "Reading size :  "<< n << std::endl;
+  std::cerr << "Reading size :  "<< n <<" from "<< file_name.c_str() << std::endl;
   for (std::vector<bool>::size_type i = 0; i < n;) {
     unsigned char aggr;
     fin.read((char *)&aggr, sizeof(unsigned char));
     for (unsigned char mask = 1; mask > 0 && i < n; ++i, mask <<= 1) x->at(i) = aggr & mask;
   }
+  fin.close();
 }
 
 std::string getFileName(const std::string &s) {
@@ -558,8 +562,8 @@ int main(int argc, char **argv) {
       binary_write(&myFilters[i], bf_location + "_" + std::to_string(i));
     }
     
-    std::cerr << "Dispatching read...." << std::endl;
-    dispatchRead(libName, myFilters);
+    // std::cerr << "Dispatching read...." << std::endl;
+    // dispatchRead(libName, myFilters);
   } else {
     std::cerr << "Running dispatch with a precalculated bloom filter" << std::endl;
     std::vector<std::vector<bool> > myFilters(opt::pnum);
