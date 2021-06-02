@@ -10,4 +10,7 @@ RUN cd scone-dida-bwa && scone g++ dsp.cpp -o dsp && scone g++ mrg.cpp -o mrg
 
 ENV PATH="/scone-dida-bwa:/root/bwa/:${PATH}"
 
-ENTRYPOINT ["/bin/bash"]
+COPY entrypoint.sh /
+RUN chmod +x entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

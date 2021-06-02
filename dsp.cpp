@@ -557,7 +557,7 @@ int main(int argc, char **argv) {
     std::vector<std::vector<bool> > myFilters = loadFilter();
     #pragma omp parallel for
     for (int i = 0; i < opt::pnum; i++) {
-      std::cerr << "Writing bloom filter of partition "<< i << "\n" << std::endl;
+      std::cerr << "Writing bloom filter of partition "<< i << std::endl;
       binary_write(&myFilters[i], bf_location + "_" + std::to_string(i));
     }
     
