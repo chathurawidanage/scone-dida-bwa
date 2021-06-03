@@ -1,3 +1,3 @@
 #!/bin/bash
 . ./set_env.sh
-docker run -it -v "$FS_BASE/work:/work" -v "$FS_BASE/volume:/data" -v "$FS_BASE/data-original:/data-original" 3ba335604c62 -c "dsp -b25 -p10 -g /work/ref_80/ -u /work/bf -d /data/a1 -e 0 /work/input.txt"
+docker run -it -v "$FS_BASE/work:/work" -v "$FS_BASE/volume:/data" -v "$FS_BASE/data-original:/data-original" $UNPROTECTED_DOCKER -c "dsp -b${BMER} -p${PARTITIONS} -g ${GEN_SOURCE} -u ${UNPROTECTED_BF} -d ${PROTECTED_WORK} -e 0 ${INPUT_FILE}"

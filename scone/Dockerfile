@@ -13,4 +13,7 @@ ENV PATH="/scone-dida-bwa:/root/bwa/:${PATH}"
 COPY entrypoint.sh /
 RUN chmod +x entrypoint.sh
 
+COPY reset.sh /
+RUN chmod +x reset.sh
+
 ENTRYPOINT ["/entrypoint.sh"]
