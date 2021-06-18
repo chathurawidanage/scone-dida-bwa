@@ -544,6 +544,7 @@ int main(int argc, char **argv) {
   std::cerr << "alen=" << opt::alen << "\n";
   std::cerr << "dst=" << opt::dst << "\n";
   std::cerr << "src_gen=" << opt::src_gen << "\n";
+  std::cerr << "se=" << opt::se << "\n";
 
   const char *libName(argv[argc - 1]);
 

@@ -5,7 +5,7 @@ export SCONE_ORIGINAL_DATA=$FS_BASE/data-original
 
 export WORD_DIR=$FS_BASE/work
 
-export PARTITIONS=10
+export PARTITIONS=80
 export BMER=25
 
 export RUN_ID="${PARTITIONS}_${BMER}_$(uuidgen)"
@@ -19,7 +19,7 @@ else
 fi
 
 # Paths are relative to the container
-export GEN_SOURCE=/work/ref_${PARTITIONS}_dida/
+export GEN_SOURCE=/work/ref_${PARTITIONS}/
 export UNPROTECTED_BF=/work/bf
 export PROTECTED_WORK=/data/$RUN_ID
 export UNPROTECTED_WORK=/work/$RUN_ID
