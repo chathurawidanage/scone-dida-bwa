@@ -82,9 +82,12 @@ static std::string dst_up;
 
 /** Stage of the dispatch algorithm */
 static int stage = 0;
+
+/** Index of the partition to process */
+static int idx = -1;
 }  // namespace opt
 
-static const char shortopts[] = "s:l:b:p:j:d:h:i:d:g:u:e:";
+static const char shortopts[] = "s:l:b:p:j:d:h:i:d:g:u:e:r:";
 
 enum { OPT_HELP = 1, OPT_VERSION };
 
@@ -95,7 +98,7 @@ static const struct option longopts[] = {{"threads", required_argument, NULL, 'j
                                          {"step", required_argument, NULL, 's'},
                                          {"hash", required_argument, NULL, 'h'},
                                          {"bit", required_argument, NULL, 'i'},
-                                         {"src", required_argument, NULL, 'r'},
+                                         {"idx", required_argument, NULL, 'r'},
                                          {"dst", required_argument, NULL, 'd'},
                                          {"stage", required_argument, NULL, 'e'},
                                          {"dst_unprotected", required_argument, NULL, 'u'},
@@ -316,14 +319,24 @@ std::vector<std::vector<bool> > loadFilter() {
 void dispatchRead(const char *libName, const std::vector<std::vector<bool> > &myFilters) {
   size_t buffSize = 4000000;
   std::ofstream rdFiles[opt::pnum];
-  for (int i = 0; i < opt::pnum; ++i) {
+  if (opt::idx == -1) {
+    for (int i = 0; i < opt::pnum; ++i) {
+      std::stringstream rstm;
+      if (!opt::fq)
+        rstm << opt::dst << "/mreads-" << i + 1 << ".fa";
+      else
+        rstm << opt::dst << "/mreads-" << i + 1 << ".fastq";
+      rdFiles[i].open((rstm.str()).c_str());
+    }
+  } else {
     std::stringstream rstm;
     if (!opt::fq)
-      rstm << opt::dst << "/mreads-" << i + 1 << ".fa";
+      rstm << opt::dst << "/mreads-" << opt::idx + 1 << ".fa";
     else
-      rstm << opt::dst << "/mreads-" << i + 1 << ".fastq";
-    rdFiles[i].open((rstm.str()).c_str());
+      rstm << opt::dst << "/mreads-" << opt::idx + 1 << ".fastq";
+    rdFiles[opt::idx].open((rstm.str()).c_str());
   }
+
   std::stringstream msFilePath;
   msFilePath << opt::dst << "/lreads.sam";
   std::ofstream msFile(msFilePath.str());
@@ -365,10 +378,33 @@ void dispatchRead(const char *libName, const std::vector<std::vector<bool> > &my
       if (readBuffer.size() == buffSize) readValid = true;
 
       // dispatch buffer
-      int pIndex;
       std::vector<bool> dspRead(buffSize, false);
+      if (opt::idx == -1) {
+        int pIndex;
 #pragma omp parallel for shared(readBuffer, rdFiles, dspRead) private(pIndex)
-      for (pIndex = 0; pIndex < opt::pnum; ++pIndex) {
+        for (pIndex = 0; pIndex < opt::pnum; ++pIndex) {
+          for (size_t bIndex = 0; bIndex < readBuffer.size(); ++bIndex) {
+            faqRec bRead = readBuffer[bIndex];
+            size_t readLen = bRead.readSeq.length();
+            // size_t j=0;
+            for (size_t j = 0; j <= readLen - opt::bmer; j += opt::bmer_step) {
+              std::string bMer = bRead.readSeq.substr(j, opt::bmer);
+              getCanon(bMer);
+              if (filContain(myFilters, pIndex, bMer)) {
+#pragma omp critical
+                dspRead[bIndex] = true;
+                if (!opt::fq)
+                  rdFiles[pIndex] << bRead.readHead << "\n" << bRead.readSeq << "\n";
+                else
+                  rdFiles[pIndex] << bRead.readHead << "\n"
+                                  << bRead.readSeq << "\n+\n"
+                                  << bRead.readQual << "\n";
+                break;
+              }
+            }
+          }
+        }
+      } else {
         for (size_t bIndex = 0; bIndex < readBuffer.size(); ++bIndex) {
           faqRec bRead = readBuffer[bIndex];
           size_t readLen = bRead.readSeq.length();
@@ -376,20 +412,20 @@ void dispatchRead(const char *libName, const std::vector<std::vector<bool> > &my
           for (size_t j = 0; j <= readLen - opt::bmer; j += opt::bmer_step) {
             std::string bMer = bRead.readSeq.substr(j, opt::bmer);
             getCanon(bMer);
-            if (filContain(myFilters, pIndex, bMer)) {
-#pragma omp critical
+            if (filContain(myFilters, opt::idx, bMer)) {
               dspRead[bIndex] = true;
               if (!opt::fq)
-                rdFiles[pIndex] << bRead.readHead << "\n" << bRead.readSeq << "\n";
+                rdFiles[opt::idx] << bRead.readHead << "\n" << bRead.readSeq << "\n";
               else
-                rdFiles[pIndex] << bRead.readHead << "\n"
-                                << bRead.readSeq << "\n+\n"
-                                << bRead.readQual << "\n";
+                rdFiles[opt::idx] << bRead.readHead << "\n"
+                                  << bRead.readSeq << "\n+\n"
+                                  << bRead.readQual << "\n";
               break;
             }
           }
         }
-      }  // end dispatch buffer
+      }
+      // end dispatch buffer
       for (size_t bIndex = 0; bIndex < readBuffer.size(); ++bIndex) {
         if (!dspRead[bIndex])
           msFile << readBuffer[bIndex].readHead.substr(1, std::string::npos)
@@ -401,10 +437,17 @@ void dispatchRead(const char *libName, const std::vector<std::vector<bool> > &my
   }
   libFile.close();
   msFile.close();
-  for (int pIndex = 0; pIndex < opt::pnum; ++pIndex) rdFiles[pIndex].close();
+  if (opt::idx == -1) {
+    for (int pIndex = 0; pIndex < opt::pnum; ++pIndex) rdFiles[pIndex].close();
+  } else {
+    rdFiles[opt::idx].close();
+  }
 
   std::stringstream maxInfPath;
   maxInfPath << opt::dst_up << "/maxinf";
+  if (opt::idx == -1) {
+    maxInfPath << "_" << opt::idx;
+  }
   std::ofstream imdFile(maxInfPath.str(), std::ios_base::app);
   imdFile << readId << "\n";
   imdFile.close();
@@ -535,6 +578,9 @@ int main(int argc, char **argv) {
       case 'e':
         arg >> opt::stage;
         break;
+      case 'r':
+        arg >> opt::idx;
+        break;
       case OPT_HELP:
         std::cerr << USAGE_MESSAGE;
         exit(EXIT_SUCCESS);
@@ -573,6 +619,7 @@ int main(int argc, char **argv) {
   std::cerr << "alen=" << opt::alen << "\n";
   std::cerr << "dst=" << opt::dst << "\n";
   std::cerr << "src_gen=" << opt::src_gen << "\n";
+  std::cerr << "index=" << opt::idx << "\n";
 
   const char *libName(argv[argc - 1]);
 
@@ -586,14 +633,20 @@ int main(int argc, char **argv) {
 
     std::vector<std::vector<bool> > myFilters = loadFilter();
     for (int i = 0; i < opt::pnum; i++) {
+      std::cerr << "Creating the bf for partition" << i << std::endl;
       binary_write(&myFilters[i], bf_location + "_" + std::to_string(i));
     }
   } else {
     std::cerr << "Running dispatch with a precalculated bloom filter" << std::endl;
     std::vector<std::vector<bool> > myFilters(opt::pnum);
-    for (int i = 0; i < opt::pnum; i++) {
-      binary_read(&myFilters[i], bf_location + "_" + std::to_string(i));
+    if (opt::idx == -1) {
+      for (int i = 0; i < opt::pnum; i++) {
+        binary_read(&myFilters[i], bf_location + "_" + std::to_string(i));
+      }
+    } else {
+      binary_read(&myFilters[opt::idx], bf_location + "_" + std::to_string(opt::idx));
     }
+
     dispatchRead(libName, myFilters);
   }
 #ifdef _OPENMP
