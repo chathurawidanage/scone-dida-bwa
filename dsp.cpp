@@ -435,6 +435,7 @@ void dispatchRead(const char *libName, const std::vector<std::vector<bool> > &my
     readFile[0].close();
     if (!opt::se) readFile[1].close();
   }
+  std::cerr << "Closing files..." << std::endl;
   libFile.close();
   msFile.close();
   if (opt::idx == -1) {
@@ -444,6 +445,7 @@ void dispatchRead(const char *libName, const std::vector<std::vector<bool> > &my
   }
 
   std::stringstream maxInfPath;
+  std::cerr << "Writing to the maxinf" << std::endl;
   maxInfPath << opt::dst_up << "/maxinf";
   if (opt::idx == -1) {
     maxInfPath << "_" << opt::idx;
@@ -453,67 +455,36 @@ void dispatchRead(const char *libName, const std::vector<std::vector<bool> > &my
   imdFile.close();
 }
 
-void binary_write(const std::vector<bool> *x, std::string file_name) {
+void binary_write(const std::vector<bool> *x, const std::string& file_name) {
   std::ofstream fout(file_name, std::ios::out | std::ios::binary);
   std::vector<bool>::size_type n = x->size();
   fout.write((const char *)&n, sizeof(std::vector<bool>::size_type));
+
+  std::cerr << "Writing size :  "<< n <<" to " << file_name.c_str() << std::endl;
   for (std::vector<bool>::size_type i = 0; i < n;) {
     unsigned char aggr = 0;
     for (unsigned char mask = 1; mask > 0 && i < n; ++i, mask <<= 1)
       if (x->at(i)) aggr |= mask;
     fout.write((const char *)&aggr, sizeof(unsigned char));
   }
+  fout.close();
 }
 
-void binary_read(std::vector<bool> *x, std::string file_name) {
+void binary_read(std::vector<bool> *x, const std::string& file_name) {
   std::ifstream fin(file_name);
   std::vector<bool>::size_type n;
   fin.read((char *)&n, sizeof(std::vector<bool>::size_type));
   x->resize(n);
+
+  // buffer to hold all reads
+  std::cerr << "Reading size :  "<< n <<" from "<< file_name.c_str() << std::endl;
   for (std::vector<bool>::size_type i = 0; i < n;) {
     unsigned char aggr;
     fin.read((char *)&aggr, sizeof(unsigned char));
     for (unsigned char mask = 1; mask > 0 && i < n; ++i, mask <<= 1) x->at(i) = aggr & mask;
   }
+  fin.close();
 }
-
-// void writeBf(const std::vector<std::vector<bool> > *bf, std::string file_name) {
-//   std::ofstream fout(file_name, std::ios::out | std::ios::binary);
-//   int no_of_vectors = bf->size();
-//   std::cerr << "Writing bf of size " << no_of_vectors << std::endl;
-//   fout.write(reinterpret_cast<char *>(&no_of_vectors), sizeof(no_of_vectors));
-
-//   for (int i = 0; i < no_of_vectors; i++) {
-//     std::vector<bool> *vec = &(bf->at(i));
-//     int vec_size = vec.size();
-//     std::cerr << "Writing bf partition of size " << vec_size << std::endl;
-//     fout.write(reinterpret_cast<char *>(&vec_size), sizeof(vec_size));
-//     fout.write(reinterpret_cast<char *>(&vec[0]), vec_size * sizeof(bool));
-//   }
-//   fout.close();
-//   std::cerr << "Wrote bf" << std::endl;
-// }
-
-// std::vector<std::vector<bool> > readBF(std::string file_name) {
-//   std::ifstream fin(file_name);
-//   int no_of_vectors = 0;
-//   fin.read(reinterpret_cast<char *>(&no_of_vectors), sizeof(no_of_vectors));
-//   std::vector<std::vector<bool> > bf(no_of_vectors);
-//   std::cerr << "Reading bf of size " << no_of_vectors << std::endl;
-//   for (int i = 0; i < no_of_vectors; i++) {
-//     int vec_size = 0;
-//     fin.read(reinterpret_cast<char *>(&vec_size), sizeof(vec_size));
-//     std::cerr << "Reading bf partition of size " << vec_size << std::endl;
-//     std::vector<bool> fil(vec_size);
-//     bf.push_back(fil);
-//     bool first = fil[0];
-//     fin.read(reinterpret_cast<char *>(&first), vec_size * sizeof(bool));
-//   }
-//   fin.close();
-
-//   // todo avoid copy
-//   return bf;
-// }
 
 std::string getFileName(const std::string &s) {
   char sep = '/';
@@ -620,11 +591,11 @@ int main(int argc, char **argv) {
   std::cerr << "dst=" << opt::dst << "\n";
   std::cerr << "src_gen=" << opt::src_gen << "\n";
   std::cerr << "index=" << opt::idx << "\n";
+  std::cerr << "se=" << opt::se << "\n";
 
   const char *libName(argv[argc - 1]);
 
-  std::string bf_location = opt::dst_up + "/" + getFileName(libName) + "_" +
-                            std::to_string(opt::pnum) + "_" + std::to_string(opt::bmer);
+  std::string bf_location = opt::dst_up + "/" + std::to_string(opt::pnum) + "_" + std::to_string(opt::bmer);
 
   std::cerr << "BF File : " << bf_location << std::endl;
 
@@ -632,10 +603,14 @@ int main(int argc, char **argv) {
     std::cerr << "Creating only the bloom filter" << std::endl;
 
     std::vector<std::vector<bool> > myFilters = loadFilter();
+    #pragma omp parallel for
     for (int i = 0; i < opt::pnum; i++) {
-      std::cerr << "Creating the bf for partition" << i << std::endl;
+      std::cerr << "Writing bloom filter of partition "<< i << std::endl;
       binary_write(&myFilters[i], bf_location + "_" + std::to_string(i));
     }
+    
+    // std::cerr << "Dispatching read...." << std::endl;
+    // dispatchRead(libName, myFilters);
   } else {
     std::cerr << "Running dispatch with a precalculated bloom filter" << std::endl;
     std::vector<std::vector<bool> > myFilters(opt::pnum);
